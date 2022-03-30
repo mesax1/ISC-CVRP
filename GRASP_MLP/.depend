@@ -1,0 +1,43 @@
+CMakeCXXCompilerId.o: \
+ cmake-build-debug/CMakeFiles/3.17.3/CompilerIdCXX/CMakeCXXCompilerId.cpp
+apolo_create_solutions.o: src/apolo_create_solutions.cpp \
+ src/linear_split/Pb_Data.h \
+ src/linear_split/../metaheuristic/model/instance.h \
+ src/linear_split/../metaheuristic/model/solution.h \
+ src/linear_split/Split_Linear.h src/linear_split/Split.h \
+ src/linear_split/Pb_Data.h src/linear_split/Trivial_Deque.h \
+ src/metaheuristic/methods/giant_tour_creation.h \
+ src/metaheuristic/methods/neighborhood.h src/metaheuristic/methods/vnd.h
+Pb_Data.o: src/linear_split/Pb_Data.cpp src/linear_split/Pb_Data.h \
+ src/linear_split/../metaheuristic/model/instance.h \
+ src/linear_split/../metaheuristic/model/solution.h
+Split_Linear.o: src/linear_split/Split_Linear.cpp \
+ src/linear_split/Split_Linear.h src/linear_split/Split.h \
+ src/linear_split/Pb_Data.h \
+ src/linear_split/../metaheuristic/model/instance.h \
+ src/linear_split/../metaheuristic/model/solution.h \
+ src/linear_split/Trivial_Deque.h
+giant_tour_creation.o: src/metaheuristic/methods/giant_tour_creation.cpp \
+ src/metaheuristic/methods/./giant_tour_creation.h \
+ src/metaheuristic/methods/./../model/solution.h \
+ src/metaheuristic/methods/./../model/./instance.h
+greedy_vrp.o: src/metaheuristic/methods/greedy_vrp.cpp \
+ src/metaheuristic/methods/./greedy_vrp.h \
+ src/metaheuristic/methods/./../model/solution.h \
+ src/metaheuristic/methods/./../model/./instance.h
+neighborhood.o: src/metaheuristic/methods/neighborhood.cpp \
+ src/metaheuristic/methods/./neighborhood.h \
+ src/metaheuristic/methods/./../model/solution.h \
+ src/metaheuristic/methods/./../model/./instance.h
+vnd.o: src/metaheuristic/methods/vnd.cpp \
+ src/metaheuristic/methods/./vnd.h \
+ src/metaheuristic/methods/././neighborhood.h \
+ src/metaheuristic/methods/././../model/solution.h \
+ src/metaheuristic/methods/././../model/./instance.h
+instance.o: src/metaheuristic/model/instance.cpp \
+ src/metaheuristic/model/read_vrp.h src/metaheuristic/model/instance.h
+read_vrp.o: src/metaheuristic/model/read_vrp.cpp \
+ src/metaheuristic/model/./read_vrp.h
+solution.o: src/metaheuristic/model/solution.cpp \
+ src/metaheuristic/model/./solution.h \
+ src/metaheuristic/model/././instance.h

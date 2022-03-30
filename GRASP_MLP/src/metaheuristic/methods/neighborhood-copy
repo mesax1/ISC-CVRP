@@ -1,0 +1,606 @@
+#include "./neighborhood.h"
+#include <iostream>
+
+using namespace std;
+
+
+Neighborhood::Neighborhood(bool first_improvment /*= false*/, const string& id /*= ""*/){
+    this->first_improvment = first_improvment;
+    this->id = id;
+}
+
+Neighborhood::~Neighborhood(){}
+
+Solution* Neighborhood::search_neighbors(Solution* initial_solution, const Instance& instance){}
+
+
+SwapNeighborhood::SwapNeighborhood(){}
+
+SwapNeighborhood::SwapNeighborhood(bool first_improvement /*= false*/): Neighborhood(first_improvement, "A"){}
+
+SwapNeighborhood::~SwapNeighborhood(){}
+
+Solution* SwapNeighborhood::search_neighbors(Solution* initial_solution, const Instance& instance){
+    int n_vehicles = initial_solution->vehicles.size();
+
+    int min_delta = 0;
+    vector<int> best_move;
+    Vehicle vehicle_one;
+    Vehicle vehicle_two;
+    int initial_value_for;
+    // customers
+    Customer a;
+    Customer b;
+    Customer c;
+
+    Customer f;
+    Customer g;
+    Customer h;
+    // demands
+    int route1_new_demand;
+    int route2_new_demand;
+    // dist_matrix
+    vector<vector<float>> dist;
+    // delta
+    float delta;
+	dist = instance.dist_matrix;
+    for(int vehicle_one_id = 0; vehicle_one_id < n_vehicles; vehicle_one_id++){
+        vehicle_one = *initial_solution->vehicles[vehicle_one_id];
+        for(int customer_one_id = 1; customer_one_id < vehicle_one.customers.size() - 1; customer_one_id++){
+            for(int vehicle_two_id = vehicle_one_id; vehicle_two_id < n_vehicles; vehicle_two_id++){
+                vehicle_two = *initial_solution->vehicles[vehicle_two_id];
+                if(vehicle_one_id != vehicle_two_id) initial_value_for = 1;
+                else initial_value_for = customer_one_id + 1;
+				
+                for(int customer_two_id = initial_value_for; customer_two_id < vehicle_two.customers.size() - 1; customer_two_id++){
+                    /*
+                        route1 =  [A B C D]
+                        route2 =  [E F G H]
+                        Swap(B, G) leaving us with:
+                        new_route1 = [G A C D]
+                        new_route2 = [E F B H]
+                    */
+					
+                    a = *vehicle_one.customers[customer_one_id - 1];
+                    b = *vehicle_one.customers[customer_one_id];
+                    c = *vehicle_one.customers[customer_one_id + 1];
+
+                    f = *vehicle_two.customers[customer_two_id - 1];
+                    g = *vehicle_two.customers[customer_two_id];
+                    h = *vehicle_two.customers[customer_two_id + 1];
+
+                    // Check constraint of load violation
+                    route1_new_demand = vehicle_one.load - b.demand + g.demand;
+                    route2_new_demand = vehicle_two.load - g.demand + b.demand;
+
+                    if(route1_new_demand > vehicle_one.Q || route2_new_demand > vehicle_two.Q){
+                        continue;
+                    }
+
+                    /*
+                        Evaluate the improvement delta of both route1 and route2, using distance matrix
+                        Delta = D(a,g) + D(g,c) + D(f,b) + D(b,h) - D(a,b) -D(b,c) - D(f,g) - D(g,h)
+                    
+                    
+                    delta = dist[a.id][g.id] + dist[g.id][c.id] + dist[f.id][b.id] \
+					+ dist[b.id][h.id] - dist[a.id][b.id] - dist[b.id][c.id] \
+					- dist[f.id][g.id] - dist[g.id][h.id];
+                    */
+                delta = instance.insertion_matrix[f.id][h.id][b.id] + instance.insertion_matrix[a.id][c.id][g.id] \
+                + instance.remotion_matrix[f.id][h.id][g.id] + instance.remotion_matrix[a.id][c.id][b.id];
+                    
+                    // Store the current best possible move
+                    if(delta < min_delta){
+                        min_delta = delta;
+                        best_move = {vehicle_one_id, vehicle_two_id, customer_one_id, customer_two_id};
+                        if(this->first_improvment){
+                            return this->apply_best_move(initial_solution, best_move);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return this->apply_best_move(initial_solution, best_move);
+}
+
+/**
+ * Apply the Swap (exchange) to the best possible move in the neighborhood
+ * @param initial_solution Current solution of the VRP
+ * @param best_move {vehicle_one_id, vehicle_two_id, customer_one_id, customer_two_id}
+ * 
+ * @return local_optima: New VRP solution corresponding to the local optima of this neighborhood
+ *          if there's no local optima, returns initial_solution instead
+ */
+Solution* SwapNeighborhood::apply_best_move(Solution* initial_solution, vector<int>& best_move){
+    if(best_move.size() != 0){
+        Solution* local_optima = initial_solution;
+        int vehicle_one_id = best_move[0];
+        int vehicle_two_id = best_move[1];
+        int customer_one_id = best_move[2];
+        int customer_two_id = best_move[3];
+
+        Customer* customer_one = local_optima->vehicles[vehicle_one_id]->customers[customer_one_id];
+        Customer* customer_two = local_optima->vehicles[vehicle_two_id]->customers[customer_two_id];
+
+        local_optima->vehicles[vehicle_one_id]->load -= customer_one->demand;
+        local_optima->vehicles[vehicle_one_id]->load += customer_two->demand;
+        local_optima->vehicles[vehicle_one_id]->customers[customer_one_id] = customer_two;
+
+        local_optima->vehicles[vehicle_two_id]->load -= customer_two->demand;
+        local_optima->vehicles[vehicle_two_id]->load += customer_one->demand;
+        local_optima->vehicles[vehicle_two_id]->customers[customer_two_id] = customer_one;
+		
+        return local_optima;
+    }else {
+        return initial_solution;
+    }
+}
+
+
+SwapTwoNeighborhood::SwapTwoNeighborhood(){}
+
+SwapTwoNeighborhood::SwapTwoNeighborhood(bool first_improvement /*= false*/): Neighborhood(first_improvement, "E"){}
+
+SwapTwoNeighborhood::~SwapTwoNeighborhood(){}
+
+Solution* SwapTwoNeighborhood::search_neighbors(Solution* initial_solution, const Instance& instance){
+    int n_vehicles = initial_solution->vehicles.size();
+
+    int min_delta = 0;
+    vector<int> best_move;
+    Vehicle vehicle_one;
+    Vehicle vehicle_two;
+    int initial_value_for;
+    // customers
+    Customer a;
+    Customer b;
+    Customer c;
+    Customer d;
+
+    Customer f;
+    Customer g;
+    Customer h;
+    Customer i;
+    // demands
+    int route1_new_demand;
+    int route2_new_demand;
+    // dist_matrix
+    vector<vector<float>> dist;
+    // delta
+    float delta;
+    dist = instance.dist_matrix;
+    for(int vehicle_one_id = 0; vehicle_one_id < n_vehicles; vehicle_one_id++){
+        vehicle_one = *initial_solution->vehicles[vehicle_one_id];
+        for(int customer_one_id = 1; customer_one_id < vehicle_one.customers.size() - 2; customer_one_id++){
+            for(int vehicle_two_id = vehicle_one_id; vehicle_two_id < n_vehicles; vehicle_two_id++){
+                vehicle_two = *initial_solution->vehicles[vehicle_two_id];
+                if(vehicle_one_id != vehicle_two_id) initial_value_for = 1;
+                else initial_value_for = customer_one_id + 2;
+                for(int customer_two_id = initial_value_for; customer_two_id < vehicle_two.customers.size() - 2; customer_two_id++){
+                    /*
+                        route1 =  [A B C D]
+                        route2 =  [E F G H I]
+                        Swap(B C, G H) leaving us with:
+                        new_route1 = [A G H D]
+                        new_route2 = [E F B C I]
+                    */
+
+                    a = *vehicle_one.customers[customer_one_id - 1];
+                    b = *vehicle_one.customers[customer_one_id];
+                    c = *vehicle_one.customers[customer_one_id + 1];
+                    d = *vehicle_one.customers[customer_one_id + 2];
+
+                    f = *vehicle_two.customers[customer_two_id - 1];
+                    g = *vehicle_two.customers[customer_two_id];
+                    h = *vehicle_two.customers[customer_two_id + 1];
+                    i = *vehicle_two.customers[customer_two_id + 2];
+
+                    // Check constraint of load violation
+                    route1_new_demand = vehicle_one.load - b.demand - c.demand + g.demand + h.demand;
+                    route2_new_demand = vehicle_two.load - g.demand - h.demand + b.demand + c.demand;
+
+                    if(route1_new_demand > vehicle_one.Q || route2_new_demand > vehicle_two.Q){
+                        continue;
+                    }
+
+                    /*
+                        Evaluate the improvement delta of both route1 and route2, using distance matrix
+                        Delta = D(a,g) + D(g,h) +D(h,d) + D(f,b) + D(b,c) +D(c,i) - D(a,b) -D(b,c) -D(c,d) -D(f,g) -D(g,h) -D(h,i)
+                    */
+                    
+                    delta = dist[a.id][g.id] + dist[g.id][h.id] + dist[h.id][d.id] \
+                            + dist[f.id][b.id] + dist[b.id][c.id] + dist[c.id][i.id] \
+                            - dist[a.id][b.id] - dist[b.id][c.id] - dist[c.id][d.id] \
+                            - dist[f.id][g.id] - dist[g.id][h.id] - dist[h.id][i.id];
+                    
+                    // Store the current best possible move
+                    if(delta < min_delta){
+                        min_delta = delta;
+                        best_move = {vehicle_one_id, vehicle_two_id, customer_one_id, customer_two_id, customer_one_id + 1, customer_two_id + 1};
+                        if(this->first_improvment){
+                            return this->apply_best_move(initial_solution, best_move);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return this->apply_best_move(initial_solution, best_move);
+}
+
+/**
+ * Apply the Swap(2,2) (exchange) to the best possible move in the neighborhood
+ * @param initial_solution Current solution of the VRP
+ * @param best_move {vehicle_one_id, vehicle_two_id, customer_one_id, customer_two_id, customer_one_id + 1, customer_two_id + 1}
+ * 
+ * @return local_optima: New VRP solution corresponding to the local optima of this neighborhood
+ *          if there's no local optima, returns initial_solution instead
+ */
+Solution* SwapTwoNeighborhood::apply_best_move(Solution* initial_solution, vector<int>& best_move){
+    if(best_move.size() != 0){
+        Solution* local_optima = initial_solution;
+        int vehicle_one_id = best_move[0];
+        int vehicle_two_id = best_move[1];
+        int customer_one_id = best_move[2];
+        int customer_two_id = best_move[3];
+        int customer_three_id = best_move[4];
+        int customer_four_id = best_move[5];
+
+        Customer customer_one = *local_optima->vehicles[vehicle_one_id]->customers[customer_one_id];
+        Customer customer_two = *local_optima->vehicles[vehicle_two_id]->customers[customer_two_id];
+        Customer customer_three = *local_optima->vehicles[vehicle_one_id]->customers[customer_three_id];
+        Customer customer_four = *local_optima->vehicles[vehicle_two_id]->customers[customer_four_id];
+
+        local_optima->vehicles[vehicle_one_id]->load -= customer_three.demand;
+        local_optima->vehicles[vehicle_one_id]->load += customer_four.demand;
+        local_optima->vehicles[vehicle_one_id]->customers[customer_three_id] = &customer_four;
+        
+        local_optima->vehicles[vehicle_two_id]->load -= customer_four.demand;
+        local_optima->vehicles[vehicle_two_id]->load += customer_three.demand;
+        local_optima->vehicles[vehicle_two_id]->customers[customer_four_id] = &customer_three;
+        
+        local_optima->vehicles[vehicle_one_id]->load -= customer_one.demand;
+        local_optima->vehicles[vehicle_one_id]->load += customer_two.demand;
+        local_optima->vehicles[vehicle_one_id]->customers[customer_one_id] = &customer_two;
+        
+        local_optima->vehicles[vehicle_two_id]->load -= customer_two.demand;
+        local_optima->vehicles[vehicle_two_id]->load += customer_one.demand;
+        local_optima->vehicles[vehicle_two_id]->customers[customer_two_id] = &customer_one;
+
+        return local_optima;
+    }else {
+        return initial_solution;
+    }
+}
+
+
+RelocateNeighborhood::RelocateNeighborhood(){}
+
+RelocateNeighborhood::RelocateNeighborhood(bool first_improvement /*= false*/): Neighborhood(first_improvement, "B"){}
+
+RelocateNeighborhood::~RelocateNeighborhood(){}
+
+Solution* RelocateNeighborhood::search_neighbors(Solution* initial_solution, const Instance& instance){
+    int n_vehicles = initial_solution->vehicles.size();
+	
+    int min_delta = 0;
+    vector<int> best_move;
+    Vehicle vehicle_one;
+    Vehicle vehicle_two;
+    // customers
+    Customer a;
+    Customer b;
+    Customer c;
+
+    Customer f;
+    Customer g;
+    // demands
+    int route1_new_demand;
+    int route2_new_demand;
+    // dist_matrix
+    vector<vector<float>> dist;
+    // delta
+    float delta;
+    dist = instance.dist_matrix;
+
+    for(int vehicle_one_id = 0; vehicle_one_id < n_vehicles; vehicle_one_id++){
+        vehicle_one = *initial_solution->vehicles[vehicle_one_id];
+        for(int customer_one_id = 1; customer_one_id < vehicle_one.customers.size() - 1; customer_one_id++){
+            for(int vehicle_two_id = 0; vehicle_two_id < n_vehicles; vehicle_two_id++){
+                vehicle_two = *initial_solution->vehicles[vehicle_two_id];
+                for(int customer_new_pos = 1; customer_new_pos < vehicle_two.customers.size() - 1; customer_new_pos++){
+                    /*
+                        route1 =  [A B C D]
+                        route2 =  [E F G H]
+                        Relocate(B, pos(G)) leaving us with:
+                        new_route1 = [A C D]
+                        new_route2 = [E F B G H]
+                    */
+
+                    a = *vehicle_one.customers[customer_one_id - 1];
+                    b = *vehicle_one.customers[customer_one_id];
+                    c = *vehicle_one.customers[customer_one_id + 1];
+
+                    f = *vehicle_two.customers[customer_new_pos - 1];
+                    g = *vehicle_two.customers[customer_new_pos];
+
+                    // Check constraint of load violation
+                    route2_new_demand = vehicle_two.load + b.demand;
+
+                    if(vehicle_one_id == vehicle_two_id && b.id == g.id || route2_new_demand > vehicle_two.Q){
+                        continue;
+                    }
+
+                    /*
+                        Evaluate the improvement delta of both route1 and route2, using distance matrix
+                        Delta = D(a,c) + D(f,b) + D(b,g) - D(a,b) -D(b,c) - D(f,g)
+                    
+                    
+                    delta = dist[a.id][c.id] + dist[f.id][b.id] + dist[b.id][g.id] \
+                            - dist[a.id][b.id] - dist[b.id][c.id] - dist[f.id][g.id];
+                    */
+                    
+                    delta = instance.insertion_matrix[f.id][g.id][b.id] + instance.remotion_matrix[a.id][c.id][b.id];
+                    
+                    // Store the current best possible move
+                    if(delta < min_delta){
+                        min_delta = delta;
+                        best_move = {vehicle_one_id, vehicle_two_id, customer_one_id, customer_new_pos};
+                        if(this->first_improvment){
+                            return this->apply_best_move(initial_solution, best_move);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return this->apply_best_move(initial_solution, best_move);
+}
+
+/**
+ * Apply the relocate (insertion) to the best possible move in the neighborhood
+ * @param initial_solution Current solution of the VRP
+ * @param best_move {vehicle_one_id, vehicle_two_id, customer_one_id, customer_new_pos}
+ * 
+ * @return local_optima: New VRP solution corresponding to the local optima of this neighborhood
+ *          if there's no local optima, returns initial_solution instead
+ */
+Solution* RelocateNeighborhood::apply_best_move(Solution* initial_solution, vector<int>& best_move){
+    if(best_move.size() != 0){
+        Solution* local_optima = initial_solution;
+        int vehicle_one_id = best_move[0];
+        int vehicle_two_id = best_move[1];
+        int customer_one_id = best_move[2];
+        int customer_new_pos = best_move[3];
+
+        Customer* customer_one = local_optima->vehicles[vehicle_one_id]->customers[customer_one_id];
+
+        if(vehicle_one_id == vehicle_two_id){
+            if(customer_new_pos > customer_one_id)
+                customer_new_pos--;
+        }
+
+        local_optima->vehicles[vehicle_one_id]->remove_customer(customer_one_id);
+        local_optima->vehicles[vehicle_two_id]->insert_customer(*customer_one, customer_new_pos);
+
+        return local_optima;
+    }else {
+        return initial_solution;
+    }
+}
+
+
+TwoOptIntraNeighborhood::TwoOptIntraNeighborhood(){}
+
+TwoOptIntraNeighborhood::TwoOptIntraNeighborhood(bool first_improvement /*= false*/): Neighborhood(first_improvement, "C"){}
+
+TwoOptIntraNeighborhood::~TwoOptIntraNeighborhood(){}
+
+Solution* TwoOptIntraNeighborhood::search_neighbors(Solution* solution, const Instance& instance){
+
+    int min_delta = 0;
+    vector<int> best_move;
+    // customers
+    Customer a;
+    Customer b;
+    Customer c;
+    Customer d;
+    // delta
+    float delta;
+    int vehicle_idx = 0;
+    for(const auto& vehicle : solution->vehicles){
+        for(int i = 1; i < vehicle->customers.size() - 1; i++){
+            for(int j = i + 1; j < vehicle->customers.size() - 1; j++){
+                a = *vehicle->customers[i];
+                b = *vehicle->customers[i + 1];
+                c = *vehicle->customers[j];
+                d = *vehicle->customers[j + 1];
+
+                // No need to check for Load constraint violation, because it is intra-route
+
+                delta = instance.dist_matrix[a.id][c.id] + instance.dist_matrix[b.id][d.id] \
+                        - instance.dist_matrix[a.id][b.id] - instance.dist_matrix[c.id][d.id];
+                
+                // Store the current best possible move
+
+                if(delta < min_delta){
+                    min_delta = delta;
+                    best_move = {vehicle_idx, i, j};
+                    if(this->first_improvment)
+                        return this->apply_best_move(solution, best_move);
+                }
+            }
+        }
+        vehicle_idx++;
+    }
+
+    return this->apply_best_move(solution, best_move);
+}
+
+/**
+ * Apply the 2-opt move to the best possible move in the neighborhood
+ * @param initial_solution Current solution of the VRP
+ * @param best_move {vehicle_idx, i, j}
+ * 
+ * @return local_optima: New VRP solution corresponding to the local optima of this neighborhood
+ *          if there's no local optima, returns initial_solution instead
+ */
+Solution* TwoOptIntraNeighborhood::apply_best_move(Solution* solution, vector<int>& best_move){
+    if(best_move.size() != 0){
+        Solution* local_optima = solution;
+        int vehicle_idx = best_move[0];
+        int i = best_move[1];
+        int j = best_move[2];
+        Vehicle& vehicle = *local_optima->vehicles[vehicle_idx];
+        vector<Customer*> aux_vector;
+
+        for(int h = 0; h < i + 1; h++)
+            aux_vector.push_back(vehicle.customers[h]);
+        for(int h = j; h > i; h--)
+            aux_vector.push_back(vehicle.customers[h]);
+        for(int h = j + 1; h < vehicle.customers.size(); h++)
+            aux_vector.push_back(vehicle.customers[h]);
+
+        vehicle.customers = aux_vector;
+
+        return local_optima;
+    }else {
+        return solution;
+    }
+}
+
+
+TwoOptInterNeighborhood::TwoOptInterNeighborhood(){}
+
+TwoOptInterNeighborhood::TwoOptInterNeighborhood(bool first_improvement /*= false*/): Neighborhood(first_improvement, "D"){}
+
+TwoOptInterNeighborhood::~TwoOptInterNeighborhood(){}
+
+Solution* TwoOptInterNeighborhood::search_neighbors(Solution* solution, const Instance& instance){
+	Solution* aux_solution = new Solution(*solution);
+    aux_solution->compute_cummulative_demands();
+
+    int min_delta = 0;
+    vector<int> best_move;
+    // customers
+    Customer a;
+    Customer b;
+    Customer c;
+    Customer d;
+    // demands
+    int route1_new_demand;
+    int route2_new_demand;
+    // delta
+    float delta;
+    int vehicle1_idx = 0;
+    int vehicle2_idx = 0;
+	
+    for(auto& vehicle1 : aux_solution->vehicles){
+		vehicle2_idx = 0;
+        for(auto& vehicle2 : aux_solution->vehicles){
+            if(vehicle1_idx == vehicle2_idx){
+				vehicle2_idx++;
+				continue;
+			}
+			
+            for(int i = 1; i < vehicle1->customers.size() - 1; i++){
+                for(int j = 1; j < vehicle2->customers.size() - 1; j++){
+                    a = *vehicle1->customers[i];
+                    b = *vehicle1->customers[i + 1];
+                    c = *vehicle2->customers[j];
+                    d = *vehicle2->customers[j + 1];
+
+                    route1_new_demand = vehicle1->get_demand_between(0, i) \
+                        + vehicle2->get_demand_between(j + 1, vehicle2->customers.size() - 1);
+                    route2_new_demand = vehicle1->get_demand_between(i + 1, vehicle1->customers.size() - 1) \
+                        + vehicle2->get_demand_between(0, j);
+
+                    if(route1_new_demand > vehicle1->Q || route2_new_demand > vehicle2->Q){
+                        continue;
+                    }
+
+                    delta = instance.dist_matrix[a.id][d.id] + instance.dist_matrix[b.id][c.id] \
+                        - instance.dist_matrix[a.id][b.id] - instance.dist_matrix[c.id][d.id];
+                    
+                    // Store the current best possible move
+
+                    if(delta < min_delta){
+                        min_delta = delta;
+                        best_move = {vehicle1_idx, vehicle2_idx, i, j};
+                        if(this->first_improvment)
+                            return this->apply_best_move(aux_solution, best_move);
+                    }
+                }
+            }
+            vehicle2_idx++;
+        }
+        vehicle1_idx++;
+    }
+    return this->apply_best_move(aux_solution, best_move);
+}
+
+Solution* TwoOptInterNeighborhood::apply_best_move(Solution* solution, vector<int>& best_move){
+    if(best_move.size() != 0){
+        Solution* local_optima = solution;
+        int vehicle1_idx = best_move[0];
+        int vehicle2_idx = best_move[1];
+        int i = best_move[2];
+        int j = best_move[3];
+
+        Vehicle& vehicle1 = *local_optima->vehicles[vehicle1_idx];
+        Vehicle& vehicle2 = *local_optima->vehicles[vehicle2_idx];
+        vector<Customer*> aux_vector;
+        vector<Customer*> temp_vehicle1_customers(vehicle1.customers.size());
+		
+		for(int cust = 0; cust < vehicle1.customers.size(); cust++){
+			temp_vehicle1_customers[cust] = new Customer(*vehicle1.customers[cust]);
+		}
+		
+		/*cout << "Customers de vehicle 1: " << endl;
+		for(int cust = 0; cust < vehicle1.customers.size(); cust++){
+			cout << vehicle1.customers[cust]->id << " ";
+		}
+		cout << endl;
+		
+		cout << "Customers de vehicle 2: " << endl;
+		for(int cust = 0; cust < vehicle2.customers.size(); cust++){
+			cout << vehicle2.customers[cust]->id << " ";
+		}
+		cout << endl;*/
+
+        for(int h = 0; h < i + 1; h++){
+            aux_vector.push_back(vehicle1.customers[h]);
+		}
+        for(int h = j + 1; h < vehicle2.customers.size(); h++){
+            aux_vector.push_back(vehicle2.customers[h]);
+		}
+
+        vehicle1.customers =  vector<Customer*>(aux_vector.size());
+		for(int cust = 0; cust < aux_vector.size(); cust++){
+			vehicle1.customers[cust] = new Customer(*aux_vector[cust]);
+		}
+		
+        vehicle1.update_load();
+        aux_vector.clear();
+		
+        for(int h = temp_vehicle1_customers.size()-1; h > i; h--){
+            aux_vector.push_back(temp_vehicle1_customers[h]);
+		}
+        for(int h = j; h > -1; h--){
+            aux_vector.push_back(vehicle2.customers[h]);
+		}
+		
+        vehicle2.customers = vector<Customer*>(aux_vector.size());
+		for(int cust = 0; cust < aux_vector.size(); cust++){
+			vehicle2.customers[cust] = new Customer(*aux_vector[cust]);
+		}
+        vehicle2.update_load();
+
+        return local_optima;
+    }else {
+        return solution;
+    }
+}
