@@ -20,14 +20,22 @@ ${repo_root_directory}         # e.g. amazon-sagemaker-amazon-routing-challenge-
     └── src/                 # C++ files   
 └── instances/                      # Instances of CVRP with CVRPLIB format
 └── results/                       # Results folder
+    └── complete_grasp/            #Store results for each iteration of the GRASPS with only local search
+    └── consolidated_results/      #Store the consolidated results of the experiments executed using the bash scripts "generate_timed_experiment.sh" or "generate_vnds_timed_experiment.sh
+    └── evolution/                 #Store the evolution/convergence of the improvement of a solution during the GRASP execution
+    └── features_datasets/         #Store the features that describe initial solutions generated on each iteration of the GRASPS
+    └── solutions_datasets/        #Store results for each iteration of the GRASPS with local search and ISC during training phase
+    └── validation_solutions/      #Store results for each iteration of the GRASPS with local search and ISC during classification phase
+    
 
 ├── generate_timed_experiment.sh   # Bash script to reproduce our experiments of Ruin-and-Recreate local search results on a Linux Computer with Bash and SLURM
 ├── generate_vnds_timed_experiment.sh       # Bash script to reproduce our experiments of VND local search results on a Linux Computer with Bash and SLURM
 ```
 ## Requirements
 
-Intel oneAPI
-DPC++/C++ Compiler, Boost 1.78 library
+Intel oneAPI DPC++/C++ Compiler
+
+Boost 1.78 library
 
 ## Running the Experiment
 
@@ -64,11 +72,9 @@ cd RR_GRASP_MLP/
 cd ..
 ```
 
-The results will be stored in the 
+The results will be stored in the folder
 ``` bash
 └── results/ 
 ```
-
-Folder
 
 
