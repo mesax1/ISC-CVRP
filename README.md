@@ -28,8 +28,10 @@ ${repo_root_directory}         # e.g. amazon-sagemaker-amazon-routing-challenge-
     └── validation_solutions/      #Store results for each iteration of the GRASPS with local search and ISC during classification phase
     
 
-├── generate_timed_experiment.sh   # Bash script to reproduce our experiments of Ruin-and-Recreate local search results on a Linux Computer with Bash and SLURM
+├── generate_timed_experiment.sh            # Bash script to reproduce our experiments of Ruin-and-Recreate local search results on a Linux Computer with Bash and SLURM
 ├── generate_vnds_timed_experiment.sh       # Bash script to reproduce our experiments of VND local search results on a Linux Computer with Bash and SLURM
+├── consolidate_rr_results.py       #Python script to consolidate results of the generate_timed_experiment.sh 
+├── consolidate_vnd_results.py      #Python script to consolidate results of the generate_vnds_timed_experiment.sh
 ```
 ## Requirements
 
@@ -77,4 +79,53 @@ The results will be stored in the folder
 └── results/ 
 ```
 
+## Reproducing the results of our work
 
+On a Linux computer, with Bash and Slurm, such as the Apolo supercomputer from Universidad EAFIT [https://www.eafit.edu.co/apolo](https://www.eafit.edu.co/apolo):
+
+1. Clone this repository
+```
+mkdir GRASP_ISC
+cd GRASP_ISC
+git clone https://github.com/mesax1/ISC-CVRP.git
+```
+
+If necessary, load C++ modules, with the Intel compiler, boost library, Python
+```
+module load intel/2022_oneAPI-update1 boost-1.78.0-gcc-11.2.0-ga5km6r
+```
+
+2. Compile the different GRASP codes
+```
+cd RR_GRASP_MLP
+make
+cd ..
+cd RR_ONLY_GRASP
+make
+cd GRASP_MLP
+make
+cd ..
+cd ONLY_GRASP
+make
+```
+
+3. Execute the experiments bash script
+3.1 Ruin-and-recreate local search
+```
+generate_timed_experiment.sh
+```
+3.2 VND local search
+```
+generate_vnds_timed_experiment.sh
+```
+
+4. When the experiments end, execute the results consolidation script
+4.1 Ruin-and-recreate local search
+```
+consolidate_rr_results.py
+```
+4.2 VND local search
+```
+consolidate_vnd_results.py
+```
+5. The results are stored in the /results/consolidated_results/ folder
