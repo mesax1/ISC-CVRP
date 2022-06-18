@@ -44,7 +44,7 @@ To run the experiment first compile the GRASPs that you want to use (In this cas
 cd RR_GRASP_MLP
 make
 cd ..
-cd RR_ONLU_GRASP
+cd RR_ONLY_GRASP
 make
 ```
 
